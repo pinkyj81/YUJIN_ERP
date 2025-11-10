@@ -1,2 +1,7 @@
-flask
+Flask
 gunicorn
+pandas
+pyodbc
+SQLAlchemy
+openpyxl
+matplotlib
