@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h4 class="fw-bold mb-3 text-primary">
+    <input type="checkbox" checked disabled> 매출관리시스템 > 매출현황
+</h4>
+
+<!-- 기간 선택 -->
+<form method="POST" class="row g-2 align-items-center mb-3">
+    <label class="col-auto fw-bold">기간:</label>
+    <div class="col-auto">
+        <select name="year" class="form-select">
+            {% for y in years %}
+                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}년</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="month" class="form-select">
+            {% for m in months %}
+                <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}월</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="text" class="form-control" name="start_date" id="start_date" value="{{ start_date }}">
+    </div>
+    <div class="col-auto">~</div>
+    <div class="col-auto">
+        <input type="text" class="form-control" name="end_date" id="end_date" value="{{ end_date }}">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" type="submit">검색</button>
+    </div>
+</form>
+
+<!-- ✅ 그래프 + 테이블 좌우 배치 -->
+<div class="row">
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold">계획 대비 실적</h6>
+                <canvas id="salesChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-body">
+                <table class="table table-bordered table-hover" style="text-align:right;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="text-align:center;">순번</th>
+                            <th style="text-align:center;">거래처명</th>
+                            <th style="text-align:center;">계획금액</th>
+                            <th style="text-align:center;">실적금액</th>
+                            <th style="text-align:center;">달성률(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in cust_tables %}
+                            <tr {% if row.CustName == '합계' %} style="background-color:#eaf3ff; font-weight:bold;" {% endif %}>
+                                <td style="text-align:center;">{{ loop.index }}</td>
+                                <td style="text-align:left;">{{ row.CustName }}</td>
+                                <td>{{ "{:,}".format(row.PlanAmt|int) }}</td>
+                                <td>{{ "{:,}".format(row.ResultAmt|int) }}</td>
+                                <td>{{ row.Rate }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Chart.js -->
+<script>
+    const labelsRaw = {{ labels|tojson }};
+    const planRaw = {{ plan_data|tojson }};
+    const resultRaw = {{ result_data|tojson }};
+
+    const filtered = labelsRaw.map((lbl, i) => ({lbl, plan: planRaw[i], result: resultRaw[i]}))
+                              .filter(item => item.lbl !== '합계');
+
+    const labels = filtered.map(item => item.lbl);
+    const plan_data = filtered.map(item => item.plan);
+    const result_data = filtered.map(item => item.result);
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '계획금액',
+                    data: plan_data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                },
+                {
+                    label: '실적금액',
+                    data: result_data,
+                    backgroundColor: 'rgba(0, 47, 167, 0.85)'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: { ticks: { autoSkip: false } },
+                y: { beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+
+    // ✅ 월 변경 시 자동으로 기간 설정
+    document.querySelector('select[name="month"]').addEventListener('change', function() {
+        const year = document.querySelector('select[name="year"]').value;
+        const month = this.value.padStart(2, '0');
+        const lastDay = new Date(year, month, 0).getDate();
+        document.getElementById('start_date').value = `${year}/${month}/01`;
+        document.getElementById('end_date').value = `${year}/${month}/${lastDay}`;
+    });
+</script>
+{% endblock %}
